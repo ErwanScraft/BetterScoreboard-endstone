@@ -245,20 +245,51 @@ class BetterScoreboardManager:
 
     @staticmethod
     def _render_line(
+        self,
         line: str,
         player,
         online: int,
         max_players: int,
     ) -> str:
-        return (
+        rendered = (
             line
             .replace("{player}", player.name)
             .replace("{online}", str(online))
-            .replace(
-                "{max_players}",
-                str(max_players),
-            )
+            .replace("{max_players}", str(max_players))
         )
+    
+        return self._parse_placeholders(
+            player,
+            rendered,
+        )
+    
+    def _parse_placeholders(
+        self,
+        player,
+        text: str,
+    ) -> str:
+        try:
+            from endstone_papi import PlaceholderAPI
+        except ImportError:
+            return text
+    
+        service = PlaceholderAPI.load(
+            self.plugin.server.service_manager
+        )
+    
+        if service is None or not service.active:
+            return text
+    
+        try:
+            return service.set_placeholders(
+                player,
+                text,
+            )
+        except Exception as exc:
+            self.plugin.logger.warning(
+                f"Failed to parse placeholders: {exc}"
+            )
+            return text
 
     def _start_update_task(self) -> None:
         self._stop_update_task()
