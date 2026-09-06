@@ -17,6 +17,8 @@ class BetterScoreboardPlugin(Plugin):
         self._scoreboard_manager = BetterScoreboardManager(self)
         self._scoreboard_manager.create()
     
+        self.register_events(self)
+    
         self.logger.info("BetterScoreboard enabled.")
         
     def on_disable(self) -> None:
