@@ -1,8 +1,8 @@
+from endstone.event import PlayerJoinEvent, event_handler
+from endstone.plugin import Plugin
+
 from .config import BetterScoreboardConfig
 from .manager import BetterScoreboardManager
-from endstone.event import event_handler
-from endstone.event.player import PlayerJoinEvent
-from endstone.plugin import Plugin
 
 
 class BetterScoreboardPlugin(Plugin):
