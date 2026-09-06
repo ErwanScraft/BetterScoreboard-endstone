@@ -16,3 +16,6 @@ better_scoreboard = "better_scoreboard:BetterScoreboardPlugin"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/better_scoreboard"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"resources/config.yml" = "better_scoreboard/config.yml"

@@ -1,0 +1,27 @@
+# ==================================================
+# BetterScoreboard Configuration
+# ==================================================
+
+scoreboard:
+  # Enable or disable the scoreboard.
+  enabled: true
+
+  # Scoreboard title.
+  title: "§6§lBetterScoreboard"
+
+  # Scoreboard lines.
+  #
+  # Available placeholders:
+  # {player}      - Player name
+  # {online}      - Current online player count
+  # {max_players} - Maximum player count
+  lines:
+    - "§7──────────────"
+    - "§fPlayer: §e{player}"
+    - "§fOnline: §a{online}/{max_players}"
+    - "§7──────────────"
+
+  # Update interval in ticks.
+  #
+  # 20 ticks = 1 second.
+  update-interval: 20
