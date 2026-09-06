@@ -1,3 +1,4 @@
+from .config import BetterScoreboardConfig
 from endstone.plugin import Plugin
 
 
@@ -6,6 +7,9 @@ class BetterScoreboardPlugin(Plugin):
 
     def on_enable(self) -> None:
         self.save_resources("config.yml")
+    
+        self._config = BetterScoreboardConfig(self)
+        self._config.load()
     
         self.logger.info("BetterScoreboard enabled.")
 
