@@ -1,4 +1,8 @@
-from endstone.scoreboard import Criteria, DisplaySlot
+from endstone.scoreboard import (
+    Criteria,
+    DisplaySlot,
+    ObjectiveSortOrder,
+)
 
 
 class BetterScoreboardManager:
@@ -26,7 +30,7 @@ class BetterScoreboardManager:
 
         self.objective.set_display(
             DisplaySlot.SIDE_BAR,
-            0,
+            ObjectiveSortOrder.ASCENDING,
         )
 
     def show(self, player) -> None:
