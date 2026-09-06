@@ -2,6 +2,7 @@ from endstone.scoreboard import (
     Criteria,
     DisplaySlot,
     ObjectiveSortOrder,
+    RenderType,
 )
 
 
@@ -9,6 +10,7 @@ class BetterScoreboardManager:
     def __init__(self, plugin) -> None:
         self.plugin = plugin
         self.scoreboards: dict[str, object] = {}
+        self._lines: dict[str, list[str]] = {}
         self._task = None
 
     def create(self) -> None:
@@ -29,13 +31,20 @@ class BetterScoreboardManager:
         scoreboard = self._create_scoreboard(player)
 
         self.scoreboards[player.name] = scoreboard
-        player.scoreboard = scoreboard
+        self._lines[player.name] = []
+
+        self._set_lines(
+            scoreboard,
+            scoreboard.get_objective("better_scoreboard"),
+            player,
+        )
 
     def remove(self, player) -> None:
         scoreboard = self.scoreboards.pop(
             player.name,
             None,
         )
+        self._lines.pop(player.name, None)
 
         if scoreboard is None:
             return
@@ -51,6 +60,7 @@ class BetterScoreboardManager:
             self.remove(player)
 
         self.scoreboards.clear()
+        self._lines.clear()
 
         self.create()
 
@@ -85,6 +95,7 @@ class BetterScoreboardManager:
             self.remove(player)
 
         self.scoreboards.clear()
+        self._lines.clear()
 
     def is_enabled(self) -> bool:
         config = self.plugin._config.get_feature(
@@ -98,9 +109,7 @@ class BetterScoreboardManager:
             "scoreboard"
         )
 
-        scoreboard = (
-            self.plugin.server.create_scoreboard()
-        )
+        scoreboard = self.plugin.server.create_scoreboard()
 
         objective = scoreboard.add_objective(
             "better_scoreboard",
@@ -109,17 +118,16 @@ class BetterScoreboardManager:
                 "title",
                 "§6§lBetterScoreboard",
             ),
+            RenderType.INTEGER,
         )
+
+        # Assign the scoreboard before enabling
+        # the sidebar display.
+        player.scoreboard = scoreboard
 
         objective.set_display(
             DisplaySlot.SIDE_BAR,
-            ObjectiveSortOrder.ASCENDING,
-        )
-
-        self._set_lines(
-            scoreboard,
-            objective,
-            player,
+            ObjectiveSortOrder.DESCENDING,
         )
 
         return scoreboard
@@ -138,6 +146,7 @@ class BetterScoreboardManager:
         )
 
         if objective is None:
+            self.remove(player)
             self.show(player)
             return
 
@@ -161,8 +170,8 @@ class BetterScoreboardManager:
 
         lines = config.get("lines", [])
 
-        for entry in list(scoreboard.entries):
-            scoreboard.reset_scores(entry)
+        if not isinstance(lines, list):
+            lines = []
 
         online = len(
             self.plugin.server.online_players
@@ -170,18 +179,61 @@ class BetterScoreboardManager:
 
         max_players = self.plugin.server.max_players
 
-        for index, line in enumerate(lines):
-            rendered = self._render_line(
+        new_lines = [
+            self._render_line(
                 line,
                 player,
                 online,
                 max_players,
             )
+            for line in lines
+            if isinstance(line, str)
+        ]
 
-            entry = rendered + ("§r" * index)
+        old_lines = self._lines.get(
+            player.name,
+            [],
+        )
 
-            score = objective.get_score(entry)
-            score.value = len(lines) - index
+        old_entries = [
+            self._make_entry(line, index)
+            for index, line in enumerate(old_lines)
+        ]
+
+        new_entries = [
+            self._make_entry(line, index)
+            for index, line in enumerate(new_lines)
+        ]
+
+        total = len(new_entries)
+
+        for index, entry in enumerate(new_entries):
+            if (
+                index < len(old_entries)
+                and old_entries[index] == entry
+            ):
+                continue
+
+            if index < len(old_entries):
+                scoreboard.reset_scores(
+                    old_entries[index]
+                )
+
+            objective.get_score(entry).value = (
+                total - index
+            )
+
+        for entry in old_entries[total:]:
+            scoreboard.reset_scores(entry)
+
+        self._lines[player.name] = new_lines
+
+    @staticmethod
+    def _make_entry(
+        line: str,
+        index: int,
+    ) -> str:
+        return line + ("§r" * index)
 
     @staticmethod
     def _render_line(
@@ -215,13 +267,11 @@ class BetterScoreboardManager:
         if not isinstance(interval, int) or interval < 1:
             interval = 20
 
-        self._task = (
-            self.plugin.server.scheduler.run_task(
-                self.plugin,
-                self.update,
-                delay=interval,
-                period=interval,
-            )
+        self._task = self.plugin.server.scheduler.run_task(
+            self.plugin,
+            self.update,
+            delay=interval,
+            period=interval,
         )
 
     def _stop_update_task(self) -> None:
@@ -233,7 +283,5 @@ class BetterScoreboardManager:
 
     @staticmethod
     def _destroy_scoreboard(scoreboard) -> None:
-        for objective in list(
-            scoreboard.objectives
-        ):
+        for objective in list(scoreboard.objectives):
             objective.unregister()
