@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "endstone-better-scoreboard"
+version = "0.1.0"
+description = "A clean and customizable scoreboard plugin for Endstone servers"
+authors = [
+    { name = "ErwanScraft" }
+]
+requires-python = ">=3.10"
+
+[project.entry-points."endstone"]
+better_scoreboard = "better_scoreboard:BetterScoreboardPlugin"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/better_scoreboard"]
