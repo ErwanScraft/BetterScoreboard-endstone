@@ -10,7 +10,7 @@ from .manager import BetterScoreboardManager
 class BetterScoreboardPlugin(Plugin):
     api_version = "0.11"
     authors = ["ErwanScraft"]
-    soft_depend = ["papi"]
+    soft_depend = ["stoneperms"]
 
     commands = {
         "betterscoreboard": {

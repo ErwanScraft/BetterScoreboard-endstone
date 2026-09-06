@@ -1,11 +1,11 @@
-from collections.abc import Callable
-
 from endstone.scoreboard import (
     Criteria,
     DisplaySlot,
     ObjectiveSortOrder,
     RenderType,
 )
+
+STONEPERMS_SERVICE = "stoneperms.permissions.v1"
 
 
 class BetterScoreboardManager:
@@ -14,7 +14,6 @@ class BetterScoreboardManager:
         self.scoreboards: dict[str, object] = {}
         self._lines: dict[str, list[str]] = {}
         self._task = None
-        self._placeholders: dict[str, Callable] = {}
 
     def create(self) -> None:
         config = self.plugin._config.get_feature("scoreboard")
@@ -107,7 +106,6 @@ class BetterScoreboardManager:
 
         self.scoreboards.clear()
         self._lines.clear()
-        self._placeholders.clear()
 
     def is_enabled(self) -> bool:
         config = self.plugin._config.get_feature(
@@ -115,24 +113,11 @@ class BetterScoreboardManager:
         )
 
         return config.get("enabled", True)
-    
-    def register_placeholder(
-        self,
-        name: str,
-        resolver: Callable,
-    ) -> None:
-        normalized_name = name.strip().lower()
-    
-        if not normalized_name:
-            raise ValueError("Placeholder name cannot be empty.")
-    
-        if not callable(resolver):
-            raise TypeError("Placeholder resolver must be callable.")
-    
-        self._placeholders[normalized_name] = resolver
-    
-    def unregister_placeholder(self, name: str) -> None:
-        self._placeholders.pop(name.strip().lower(), None)
+        
+    def _get_stoneperms(self):
+        return self.plugin.server.service_manager.load(
+            STONEPERMS_SERVICE
+        )
 
     def _create_scoreboard(self, player):
         config = self.plugin._config.get_feature(
@@ -279,28 +264,162 @@ class BetterScoreboardManager:
             .replace("{max_players}", str(max_players))
         )
     
-        for name, resolver in self._placeholders.items():
-            token = f"{{{name}}}"
+        return self._render_stoneperms(
+            player,
+            rendered,
+        )
     
-            if token not in rendered:
-                continue
+    def _render_stoneperms(
+        self,
+        player,
+        text: str,
+    ) -> str:
+        if "{stoneperms:" not in text:
+            return text
     
-            try:
-                value = resolver(player)
-            except Exception as exc:
-                self.plugin.logger.warning(
-                    "Placeholder {%s} failed: %s",
-                    name,
-                    exc,
-                )
-                continue
+        service = self._get_stoneperms()
     
-            if value is None:
-                continue
+        if service is None:
+            return text
     
-            rendered = rendered.replace(token, str(value))
+        replacements = {}
     
-        return rendered
+        static_placeholders = {
+            "{stoneperms:primary_group}": (
+                service.get_primary_group(player)
+            ),
+            "{stoneperms:groups}": ", ".join(
+                service.get_groups(player)
+            ),
+            "{stoneperms:prefix}": (
+                service.get_prefix(player)
+            ),
+            "{stoneperms:suffix}": (
+                service.get_suffix(player)
+            ),
+            "{stoneperms:tracks}": self._format_tracks(
+                service.get_user_tracks(player)
+            ),
+        }
+    
+        for placeholder, value in static_placeholders.items():
+            if value is not None:
+                replacements[placeholder] = str(value)
+    
+        meta_map = service.get_meta_map(player)
+    
+        if "{stoneperms:meta_map}" in text:
+            replacements["{stoneperms:meta_map}"] = (
+                self._format_meta_map(meta_map)
+            )
+    
+        for key, value in meta_map.items():
+            placeholder = f"{stoneperms:meta:{key}}"
+    
+            if placeholder in text:
+                replacements[placeholder] = str(value)
+    
+        for placeholder, value in replacements.items():
+            text = text.replace(
+                placeholder,
+                value,
+            )
+    
+        return self._render_stoneperms_dynamic(
+            service,
+            player,
+            text,
+        )
+    
+    def _render_stoneperms_dynamic(
+        self,
+        service,
+        player,
+        text: str,
+    ) -> str:
+        marker = "{stoneperms:"
+    
+        while marker in text:
+            start = text.find(marker)
+            end = text.find("}", start)
+    
+            if end == -1:
+                break
+    
+            placeholder = text[start:end + 1]
+            parameter = text[
+                start + len(marker):end
+            ]
+    
+            replacement = self._resolve_stoneperms_parameter(
+                service,
+                player,
+                parameter,
+            )
+    
+            if replacement is None:
+                break
+    
+            text = text.replace(
+                placeholder,
+                str(replacement),
+                1,
+            )
+    
+        return text
+        
+    def _resolve_stoneperms_parameter(
+        self,
+        service,
+        player,
+        parameter: str,
+    ):
+        if parameter.startswith("permission:"):
+            permission = parameter[
+                len("permission:"):
+            ]
+    
+            if not permission:
+                return None
+    
+            decision = service.check_permission(
+                player,
+                permission,
+            )
+    
+            return decision.value
+    
+        if parameter.startswith("has_permission:"):
+            permission = parameter[
+                len("has_permission:"):
+            ]
+    
+            if not permission:
+                return None
+    
+            return service.has_permission(
+                player,
+                permission,
+            )
+    
+        if parameter.startswith("track:"):
+            track_name = parameter[
+                len("track:"):
+            ]
+    
+            if not track_name:
+                return None
+    
+            tracks = service.get_user_tracks(player)
+    
+            groups = tracks.get(track_name)
+    
+            if groups is None:
+                return None
+    
+            return ", ".join(groups)
+    
+        return None
 
     def _start_update_task(self) -> None:
         self._stop_update_task()
@@ -335,3 +454,21 @@ class BetterScoreboardManager:
     def _destroy_scoreboard(scoreboard) -> None:
         for objective in list(scoreboard.objectives):
             objective.unregister()
+    
+    @staticmethod
+    def _format_tracks(
+        tracks: dict[str, tuple[str, ...]],
+    ) -> str:
+        return ", ".join(
+            f"{name}: {', '.join(groups)}"
+            for name, groups in tracks.items()
+        )
+    
+    @staticmethod
+    def _format_meta_map(
+        meta: dict[str, str],
+    ) -> str:
+        return ", ".join(
+            f"{key}={value}"
+            for key, value in meta.items()
+        )
