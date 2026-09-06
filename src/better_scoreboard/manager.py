@@ -44,13 +44,21 @@ class BetterScoreboardManager:
             player.name,
             None,
         )
+    
         self._lines.pop(player.name, None)
-
+    
         if scoreboard is None:
             return
-
+    
+        objective = scoreboard.get_objective(
+            "better_scoreboard"
+        )
+    
+        if objective is not None:
+            objective.set_display(None)
+    
         player.scoreboard = self.plugin.server.scoreboard
-
+    
         self._destroy_scoreboard(scoreboard)
 
     def reload(self) -> None:
