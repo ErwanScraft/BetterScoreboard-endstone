@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from endstone.scoreboard import (
     Criteria,
     DisplaySlot,
@@ -12,6 +14,7 @@ class BetterScoreboardManager:
         self.scoreboards: dict[str, object] = {}
         self._lines: dict[str, list[str]] = {}
         self._task = None
+        self._placeholders: dict[str, Callable] = {}
 
     def create(self) -> None:
         config = self.plugin._config.get_feature("scoreboard")
@@ -104,6 +107,7 @@ class BetterScoreboardManager:
 
         self.scoreboards.clear()
         self._lines.clear()
+        self._placeholders.clear()
 
     def is_enabled(self) -> bool:
         config = self.plugin._config.get_feature(
@@ -111,6 +115,24 @@ class BetterScoreboardManager:
         )
 
         return config.get("enabled", True)
+    
+    def register_placeholder(
+        self,
+        name: str,
+        resolver: Callable,
+    ) -> None:
+        normalized_name = name.strip().lower()
+    
+        if not normalized_name:
+            raise ValueError("Placeholder name cannot be empty.")
+    
+        if not callable(resolver):
+            raise TypeError("Placeholder resolver must be callable.")
+    
+        self._placeholders[normalized_name] = resolver
+    
+    def unregister_placeholder(self, name: str) -> None:
+        self._placeholders.pop(name.strip().lower(), None)
 
     def _create_scoreboard(self, player):
         config = self.plugin._config.get_feature(
@@ -243,7 +265,6 @@ class BetterScoreboardManager:
     ) -> str:
         return line + ("§r" * index)
 
-    @staticmethod
     def _render_line(
         self,
         line: str,
@@ -258,38 +279,28 @@ class BetterScoreboardManager:
             .replace("{max_players}", str(max_players))
         )
     
-        return self._parse_placeholders(
-            player,
-            rendered,
-        )
+        for name, resolver in self._placeholders.items():
+            token = f"{{{name}}}"
     
-    def _parse_placeholders(
-        self,
-        player,
-        text: str,
-    ) -> str:
-        try:
-            from endstone_papi import PlaceholderAPI
-        except ImportError:
-            return text
+            if token not in rendered:
+                continue
     
-        service = PlaceholderAPI.load(
-            self.plugin.server.service_manager
-        )
+            try:
+                value = resolver(player)
+            except Exception as exc:
+                self.plugin.logger.warning(
+                    "Placeholder {%s} failed: %s",
+                    name,
+                    exc,
+                )
+                continue
     
-        if service is None or not service.active:
-            return text
+            if value is None:
+                continue
     
-        try:
-            return service.set_placeholders(
-                player,
-                text,
-            )
-        except Exception as exc:
-            self.plugin.logger.warning(
-                f"Failed to parse placeholders: {exc}"
-            )
-            return text
+            rendered = rendered.replace(token, str(value))
+    
+        return rendered
 
     def _start_update_task(self) -> None:
         self._stop_update_task()
