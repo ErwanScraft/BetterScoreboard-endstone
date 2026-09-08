@@ -6,8 +6,6 @@ from endstone.scoreboard import (
 )
 
 SIMPLEPAPI_SERVICE = "simplepapi"
-STONEPERMS_SERVICE = "stoneperms.permissions.v1"
-
 
 class BetterScoreboardManager:
     def __init__(self, plugin) -> None:
@@ -118,11 +116,6 @@ class BetterScoreboardManager:
     def _get_simplepapi(self):
         return self.plugin.server.service_manager.load(
             SIMPLEPAPI_SERVICE
-        )
-        
-    def _get_stoneperms(self):
-        return self.plugin.server.service_manager.load(
-            STONEPERMS_SERVICE
         )
 
     def _create_scoreboard(self, player):
@@ -253,14 +246,9 @@ class BetterScoreboardManager:
         line: str,
         player,
     ) -> str:
-        rendered = self._render_simplepapi(
+        return self._render_simplepapi(
             player,
             line,
-        )
-    
-        return self._render_stoneperms(
-            player,
-            rendered,
         )
     
     def _render_simplepapi(
@@ -277,158 +265,6 @@ class BetterScoreboardManager:
             player,
             text,
         )
-    
-    def _render_stoneperms(
-        self,
-        player,
-        text: str,
-    ) -> str:
-        if "{stoneperms:" not in text:
-            return text
-    
-        service = self._get_stoneperms()
-    
-        if service is None:
-            return text
-    
-        replacements = {}
-    
-        static_placeholders = {
-            "{stoneperms:primary_group}": (
-                service.get_primary_group(player)
-            ),
-            "{stoneperms:groups}": ", ".join(
-                service.get_groups(player)
-            ),
-            "{stoneperms:prefix}": (
-                service.get_prefix(player)
-            ),
-            "{stoneperms:suffix}": (
-                service.get_suffix(player)
-            ),
-            "{stoneperms:tracks}": self._format_tracks(
-                service.get_user_tracks(player)
-            ),
-        }
-    
-        for placeholder, value in static_placeholders.items():
-            if value is not None:
-                replacements[placeholder] = str(value)
-    
-        meta_map = service.get_meta_map(player)
-    
-        if "{stoneperms:meta_map}" in text:
-            replacements["{stoneperms:meta_map}"] = (
-                self._format_meta_map(meta_map)
-            )
-    
-        for key, value in meta_map.items():
-            placeholder = f"{stoneperms:meta:{key}}"
-    
-            if placeholder in text:
-                replacements[placeholder] = str(value)
-    
-        for placeholder, value in replacements.items():
-            text = text.replace(
-                placeholder,
-                value,
-            )
-    
-        return self._render_stoneperms_dynamic(
-            service,
-            player,
-            text,
-        )
-    
-    def _render_stoneperms_dynamic(
-        self,
-        service,
-        player,
-        text: str,
-    ) -> str:
-        marker = "{stoneperms:"
-    
-        while marker in text:
-            start = text.find(marker)
-            end = text.find("}", start)
-    
-            if end == -1:
-                break
-    
-            placeholder = text[start:end + 1]
-            parameter = text[
-                start + len(marker):end
-            ]
-    
-            replacement = self._resolve_stoneperms_parameter(
-                service,
-                player,
-                parameter,
-            )
-    
-            if replacement is None:
-                break
-    
-            text = text.replace(
-                placeholder,
-                str(replacement),
-                1,
-            )
-    
-        return text
-        
-    def _resolve_stoneperms_parameter(
-        self,
-        service,
-        player,
-        parameter: str,
-    ):
-        if parameter.startswith("permission:"):
-            permission = parameter[
-                len("permission:"):
-            ]
-    
-            if not permission:
-                return None
-    
-            decision = service.check_permission(
-                player,
-                permission,
-            )
-    
-            return decision.value
-    
-        if parameter.startswith("has_permission:"):
-            permission = parameter[
-                len("has_permission:"):
-            ]
-    
-            if not permission:
-                return None
-    
-            return service.has_permission(
-                player,
-                permission,
-            )
-    
-        if parameter.startswith("track:"):
-            track_name = parameter[
-                len("track:"):
-            ]
-    
-            if not track_name:
-                return None
-    
-            tracks = service.get_user_tracks(player)
-    
-            groups = tracks.get(track_name)
-    
-            if groups is None:
-                return None
-    
-            return ", ".join(groups)
-    
-        return None
 
     def _start_update_task(self) -> None:
         self._stop_update_task()
@@ -463,21 +299,3 @@ class BetterScoreboardManager:
     def _destroy_scoreboard(scoreboard) -> None:
         for objective in list(scoreboard.objectives):
             objective.unregister()
-    
-    @staticmethod
-    def _format_tracks(
-        tracks: dict[str, tuple[str, ...]],
-    ) -> str:
-        return ", ".join(
-            f"{name}: {', '.join(groups)}"
-            for name, groups in tracks.items()
-        )
-    
-    @staticmethod
-    def _format_meta_map(
-        meta: dict[str, str],
-    ) -> str:
-        return ", ".join(
-            f"{key}={value}"
-            for key, value in meta.items()
-        )

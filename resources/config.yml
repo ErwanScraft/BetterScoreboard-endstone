@@ -19,17 +19,16 @@ scoreboard:
   # %server_online%      - Current online player count
   # %server_max_players% - Maximum player count
   #
-  # StonePerms placeholders:
-  # {stoneperms:primary_group}
-  # {stoneperms:groups}
-  # {stoneperms:prefix}
-  # {stoneperms:suffix}
-  # {stoneperms:tracks}
-  # {stoneperms:meta_map}
-  # {stoneperms:meta:<key>}
-  # {stoneperms:permission:<permission>}
-  # {stoneperms:has_permission:<permission>}
-  # {stoneperms:track:<track>}
+  # StonePerms placeholders provided through SimplePAPI:
+  # %stoneperms_primary_group%               - Primary group / rank
+  # %stoneperms_groups%                      - Player groups
+  # %stoneperms_prefix%                      - Group prefix
+  # %stoneperms_suffix%                      - Group suffix
+  # %stoneperms_tracks%                      - Player tracks
+  # %stoneperms_meta_<key>%                  - Metadata value
+  # %stoneperms_permission_<permission>%     - Permission decision
+  # %stoneperms_has_permission_<permission>% - Permission status
+  # %stoneperms_track_<track>%               - Groups in a track
   lines:
     - "§7──────────────"
     - "§fPlayer: §e{player}"
