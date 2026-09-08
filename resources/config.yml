@@ -12,9 +12,24 @@ scoreboard:
   # Scoreboard lines.
   #
   # Available placeholders:
-  # {player}      - Player name
-  # {online}      - Current online player count
-  # {max_players} - Maximum player count
+  # SimplePAPI placeholders:
+  # %player_name%        - Player name
+  # %player_uuid%        - Player UUID
+  # %player_ping%        - Player ping
+  # %server_online%      - Current online player count
+  # %server_max_players% - Maximum player count
+  #
+  # StonePerms placeholders:
+  # {stoneperms:primary_group}
+  # {stoneperms:groups}
+  # {stoneperms:prefix}
+  # {stoneperms:suffix}
+  # {stoneperms:tracks}
+  # {stoneperms:meta_map}
+  # {stoneperms:meta:<key>}
+  # {stoneperms:permission:<permission>}
+  # {stoneperms:has_permission:<permission>}
+  # {stoneperms:track:<track>}
   lines:
     - "§7──────────────"
     - "§fPlayer: §e{player}"

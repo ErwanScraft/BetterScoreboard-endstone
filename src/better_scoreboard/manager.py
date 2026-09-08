@@ -5,6 +5,7 @@ from endstone.scoreboard import (
     RenderType,
 )
 
+SIMPLEPAPI_SERVICE = "simplepapi"
 STONEPERMS_SERVICE = "stoneperms.permissions.v1"
 
 
@@ -113,6 +114,11 @@ class BetterScoreboardManager:
         )
 
         return config.get("enabled", True)
+    
+    def _get_simplepapi(self):
+        return self.plugin.server.service_manager.load(
+            SIMPLEPAPI_SERVICE
+        )
         
     def _get_stoneperms(self):
         return self.plugin.server.service_manager.load(
@@ -188,18 +194,10 @@ class BetterScoreboardManager:
         if not isinstance(lines, list):
             lines = []
 
-        online = len(
-            self.plugin.server.online_players
-        )
-
-        max_players = self.plugin.server.max_players
-
         new_lines = [
             self._render_line(
                 line,
                 player,
-                online,
-                max_players,
             )
             for line in lines
             if isinstance(line, str)
@@ -254,19 +252,30 @@ class BetterScoreboardManager:
         self,
         line: str,
         player,
-        online: int,
-        max_players: int,
     ) -> str:
-        rendered = (
-            line
-            .replace("{player}", player.name)
-            .replace("{online}", str(online))
-            .replace("{max_players}", str(max_players))
+        rendered = self._render_simplepapi(
+            player,
+            line,
         )
     
         return self._render_stoneperms(
             player,
             rendered,
+        )
+    
+    def _render_simplepapi(
+        self,
+        player,
+        text: str,
+    ) -> str:
+        service = self._get_simplepapi()
+    
+        if service is None:
+            return text
+    
+        return service.set_placeholders(
+            player,
+            text,
         )
     
     def _render_stoneperms(
